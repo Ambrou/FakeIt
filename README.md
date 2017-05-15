@@ -75,11 +75,12 @@ If you don't find your unit testing framework on the list, simply use the *stand
 ### Using a pre-packaged single header file
 Pre-packaged single header versions of FakeIt are located under the *single_header* folder.
 Depending on the unit testing framework you use, simply add one of the pre-packaged versions to the include path of your test project:
-* <fakeit_folder>/single_header/gtest
+* <fakeit_folder>/single_header/[gtest](https://github.com/google/googletest)
 * <fakeit_folder>/single_header/mstest
 * <fakeit_folder>/single_header/boost
-* <fakeit_folder>/single_header/catch
-* <fakeit_folder>/single_header/tpunit
+* <fakeit_folder>/single_header/[catch](https://github.com/philsquared/Catch)
+* <fakeit_folder>/single_header/[tpunit](https://github.com/tpounds/tpunitpp)
+* <fakeit_folder>/single_header/[mettle](https://github.com/jimporter/mettle)
 * <fakeit_folder>/single_header/standalone
 
 For example, to use fakeit with **Google Test** simply add the *single_header/gtest* folder to the include path of your test project:
@@ -109,6 +110,10 @@ For example:
 ```
 -I"<fakeit_folder>/include" -I"<fakeit_folder>/config/tpunit"
 ```
+* To use fakeit with **Mettle** add the *include* folder and the *config/mettle* folder to the include path of your test project:
+```
+-I"<fakeit_folder>/include" -I"<fakeit_folder>/config/mettle"
+```
 * To use fakeit without any testing framework integration (**standalone**) add the *include* folder and the *config/standalone* folder to the include path of your test project:
 ```
 -I"<fakeit_folder>/include" -I"<fakeit_folder>/config/standalone"
@@ -134,22 +139,6 @@ run the tests by typing
 ```
 #### Building and Running the Unit Tests with Visual Studio 
 Open the tests/all_tests.vcxproj project file with Visual Studio 2013. Build and run the project and check the test results. 
-### Pulling FakeIt form [**Biicode**](https://www.biicode.com/eranpeer/FakeIt)
-FakeIt is published on [**Biicode**](https://www.biicode.com/eranpeer/FakeIt).
-To use FakeIt from Biicode simply make the following changes to the biicode.conf file of your project:
-* Add the following line to the [Requirements] section:
-```
-eranpeer/FakeIt: 0 
-```
-* Add ONE of the following lines to the [includes] section:
-```
-fakeit.hpp: eranpeer/FakeIt/config/gtest       # To use fakeit with gtest
-fakeit.hpp: eranpeer/FakeIt/config/boost       # To use fakeit with boost test
-fakeit.hpp: eranpeer/FakeIt/config/mstest      # To use fakeit with mstest
-fakeit.hpp: eranpeer/FakeIt/config/catch       # To use fakeit with catch
-fakeit.hpp: eranpeer/FakeIt/config/tpunit      # To use fakeit with tpunit
-fakeit.hpp: eranpeer/FakeIt/config/standalone  # To use fakeit with standalone configuration.
-```
 ## Limitations
 * Currently only GCC, Clang and MSC++ are supported.
 * Can't mock classes with multiple inheritance.

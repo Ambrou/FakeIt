@@ -2,13 +2,12 @@
 /*
  *  FakeIt - A Simplified C++ Mocking Framework
  *  Copyright (c) Eran Pe'er 2013
- *  Generated: 2017-05-07 09:27:12.367913
+ *  Generated: 2017-05-07 09:27:24.965112
  *  Distributed under the MIT License. Please refer to the LICENSE file at:
  *  https://github.com/eranpeer/FakeIt
  */
 
-#ifndef fakeit_h__
-#define fakeit_h__
+
 
 
 
@@ -1073,58 +1072,68 @@ namespace fakeit {
 
 namespace fakeit {
 
-	struct GTestAdapter : public EventHandler {
-		virtual ~GTestAdapter() = default;
+    struct MettleAdapter : public EventHandler {
 
-        GTestAdapter(EventFormatter &formatter)
-			: _formatter(formatter) {
-		}
-
-		virtual void handle(const UnexpectedMethodCallEvent &evt) override {
-			std::string format = _formatter.format(evt);
-            GTEST_FATAL_FAILURE_(format.c_str());
+        std::string formatLineNumner(std::string file, int num){
+#ifndef __GNUG__
+            return file + std::string("(") + std::to_string(num) + std::string(")");
+#else
+            return file + std::string(":") + std::to_string(num);
+#endif
         }
 
-		virtual void handle(const SequenceVerificationEvent &evt) override {
-			std::string format(_formatter.format(evt));
-			GTEST_MESSAGE_AT_(evt.file(), evt.line(), format.c_str(), ::testing::TestPartResult::kFatalFailure);
+        virtual ~MettleAdapter() = default;
+
+        MettleAdapter(EventFormatter &formatter)
+            : _formatter(formatter) {
         }
 
-		virtual void handle(const NoMoreInvocationsVerificationEvent &evt) override {
-			std::string format = _formatter.format(evt);
-			GTEST_MESSAGE_AT_(evt.file(), evt.line(), format.c_str(), ::testing::TestPartResult::kFatalFailure);
+        virtual void handle(const UnexpectedMethodCallEvent &evt) override {
+            throw mettle::expectation_error(_formatter.format(evt));
         }
 
-	private:
-		EventFormatter &_formatter;
-	};
+        virtual void handle(const SequenceVerificationEvent &evt) override {
+            throw mettle::expectation_error(
+                    formatLineNumner(evt.file(), evt.line()) + ": " +
+                    _formatter.format(evt));
+        }
 
-    class GTestFakeit : public DefaultFakeit {
+        virtual void handle(const NoMoreInvocationsVerificationEvent &evt) override {
+            throw mettle::expectation_error(
+                    formatLineNumner(evt.file(), evt.line()) + ": " +
+                    _formatter.format(evt));
+        }
+
+    private:
+        EventFormatter &_formatter;
+    };
+
+    class MettleFakeit : public DefaultFakeit {
 
     public:
-        virtual ~GTestFakeit() = default;
+        virtual ~MettleFakeit() = default;
 
-        GTestFakeit(): _gTestAdapter(*this) {
+        MettleFakeit() : _mettleAdapter(*this) {
         }
 
-        static GTestFakeit &getInstance() {
-            static GTestFakeit instance;
+        static MettleFakeit &getInstance() {
+            static MettleFakeit instance;
             return instance;
         }
 
     protected:
 
         fakeit::EventHandler &accessTestingFrameworkAdapter() override {
-            return _gTestAdapter;
+            return _mettleAdapter;
         }
 
     private:
 
-        GTestAdapter _gTestAdapter;
+        MettleAdapter _mettleAdapter;
     };
 }
 
-static fakeit::DefaultFakeit& Fakeit = fakeit::GTestFakeit::getInstance();
+static fakeit::DefaultFakeit& Fakeit = fakeit::MettleFakeit::getInstance();
 
 
 #include <type_traits>
@@ -9207,5 +9216,3 @@ namespace fakeit {
 #define When(call) \
     When(call)
 
-
-#endif

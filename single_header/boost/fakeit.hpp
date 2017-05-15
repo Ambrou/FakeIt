@@ -2,7 +2,7 @@
 /*
  *  FakeIt - A Simplified C++ Mocking Framework
  *  Copyright (c) Eran Pe'er 2013
- *  Generated: 2015-10-29 23:45:30.560000
+ *  Generated: 2017-05-07 09:26:48.645797
  *  Distributed under the MIT License. Please refer to the LICENSE file at:
  *  https://github.com/eranpeer/FakeIt
  */
@@ -58,16 +58,44 @@ namespace fakeit {
     template< class T > struct production_arg< T& >   { typedef T& type; };
     template< class T > struct production_arg< T&& >  { typedef T&&  type; };
 
-	template <typename T>
-	class is_ostreamable {
-		struct no {};
-		template <typename T1>
-		static auto test(std::ostream &s, const T1 &t) -> decltype(s << t);
-		static no test(...);
-	public:
-		static const bool value = std::is_same<decltype(test(*(std::ostream *)nullptr,
-			std::declval<T>())), std::ostream &>::value;
-	};
+    template <typename T>
+    class is_ostreamable {
+        struct no {};
+#if defined(_MSC_VER) && _MSC_VER < 1900
+        template <typename T1>
+        static decltype(operator<<(std::declval<std::ostream&>(), std::declval<const T1>())) test(std::ostream &s, const T1 &t);
+#else
+        template <typename T1>
+        static auto test(std::ostream &s, const T1 &t) -> decltype(s << t);
+#endif
+        static no test(...);
+    public:
+
+        static const bool value =
+            std::is_arithmetic<T>::value ||
+            std::is_pointer<T>::value ||
+            std::is_same<decltype(test(*(std::ostream *)nullptr,
+                std::declval<T>())), std::ostream &>::value;
+    };
+
+
+    template <>
+    class is_ostreamable<std::ios_base& (*)(std::ios_base&)> {
+    public:
+        static const bool value = true;
+    };
+
+    template <typename CharT, typename Traits>
+    class is_ostreamable<std::basic_ios<CharT,Traits>& (*)(std::basic_ios<CharT,Traits>&)> {
+    public:
+        static const bool value = true;
+    };
+
+    template <typename CharT, typename Traits>
+    class is_ostreamable<std::basic_ostream<CharT,Traits>& (*)(std::basic_ostream<CharT,Traits>&)> {
+    public:
+        static const bool value = true;
+    };
 
     template<typename R, typename... arglist>
     struct VTableMethodType {
@@ -290,23 +318,6 @@ namespace fakeit {
 
 namespace fakeit {
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     template<typename ... arglist>
     struct ActualInvocation : public Invocation {
 
@@ -318,7 +329,7 @@ namespace fakeit {
 
         ActualInvocation(unsigned int ordinal, MethodInfo &method, const typename fakeit::production_arg<arglist>::type... args) :
             Invocation(ordinal, method), _matcher{ nullptr }
-            , actualArguments{ std::forward<const typename fakeit::production_arg<arglist>::type>(args)... }
+            , actualArguments{ std::forward<arglist>(args)... }
         {
         }
 
@@ -364,10 +375,16 @@ namespace fakeit {
 
 namespace fakeit {
 
+	struct ActualInvocationsContainer {
+		virtual void clear() = 0;
+
+		virtual ~ActualInvocationsContainer() NO_THROWS { }
+	};
+
     struct ActualInvocationsSource {
         virtual void getActualInvocations(std::unordered_set<fakeit::Invocation *> &into) const = 0;
 
-        virtual ~ActualInvocationsSource() NO_THROWS { };
+        virtual ~ActualInvocationsSource() NO_THROWS { }
     };
 
     struct InvocationsSourceProxy : public ActualInvocationsSource {
@@ -581,13 +598,13 @@ namespace fakeit {
             return _verificationType;
         }
 
-        void setFileInfo(std::string aFile, int aLine, std::string aCallingMethod) {
+        void setFileInfo(const char * aFile, int aLine, const char * aCallingMethod) {
             _file = aFile;
             _callingMethod = aCallingMethod;
             _line = aLine;
         }
 
-        std::string file() const {
+        const char * file() const {
             return _file;
         }
 
@@ -595,15 +612,15 @@ namespace fakeit {
             return _line;
         }
 
-        const std::string &callingMethod() const {
+        const char * callingMethod() const {
             return _callingMethod;
         }
 
     private:
         VerificationType _verificationType;
-        std::string _file;
+		const char * _file;
         int _line;
-        std::string _callingMethod;
+        const char * _callingMethod;
     };
 
     struct NoMoreInvocationsVerificationEvent : public VerificationEvent {
@@ -5832,7 +5849,8 @@ namespace fakeit {
         std::vector<std::shared_ptr<Destructible>> &_methodMocks;
         std::vector<unsigned int> &_offsets;
 
-        unsigned int getOffset(unsigned int id) {
+        unsigned int getOffset(unsigned int id) const
+        {
             unsigned int offset = 0;
             for (; offset < _offsets.size(); offset++) {
                 if (_offsets[offset] == id) {
@@ -5886,10 +5904,16 @@ namespace fakeit {
         }
 
         void Reset() {
-            _methodMocks = {{}};
+			_methodMocks = {};
             _methodMocks.resize(VTUtils::getVTSize<C>());
             _members = {};
+			_offsets = {};
+            _offsets.resize(VTUtils::getVTSize<C>());
             _cloneVt.copyFrom(originalVtHandle.restore());
+        }
+
+		void Clear()
+        {
         }
 
         template<int id, typename R, typename ... arglist>
@@ -6303,7 +6327,7 @@ namespace fakeit {
             }
 
             struct Matcher : public TypedMatcher<T> {
-                virtual bool matches(const T &) const {
+                virtual bool matches(const T &) const override {
                     return true;
                 }
 
@@ -6690,7 +6714,7 @@ namespace fakeit {
 
 
     template<typename R, typename ... arglist>
-    class RecordedMethodBody : public MethodInvocationHandler<R, arglist...>, public ActualInvocationsSource {
+    class RecordedMethodBody : public MethodInvocationHandler<R, arglist...>, public ActualInvocationsSource, public ActualInvocationsContainer {
 
         struct MatchedInvocationHandler : ActualInvocationHandler<R, arglist...> {
 
@@ -6778,11 +6802,14 @@ namespace fakeit {
             _invocationHandlers.push_back(destructable);
         }
 
-        void clear() {
+        void reset() {
             _invocationHandlers.clear();
             _actualInvocations.clear();
         }
 
+		void clear() override {
+			_actualInvocations.clear();
+		}
 
         R handleMethodInvocation(const typename fakeit::production_arg<arglist>::type... args) override {
             unsigned int ordinal = Invocation::nextInvocationOrdinal();
@@ -7830,12 +7857,27 @@ namespace fakeit {
             }
         }
 
-        void reset() {
+	    void initDataMembersIfOwner()
+	    {
+		    if (_isOwner) {
+			    FakeObject<C, baseclasses...> *fake = reinterpret_cast<FakeObject<C, baseclasses...> *>(_instance);
+			    fake->initializeDataMembersArea();
+		    }
+	    }
+
+	    void reset() {
             _proxy.Reset();
-            if (_isOwner) {
-                FakeObject<C, baseclasses...> *fake = reinterpret_cast<FakeObject<C, baseclasses...> *>(_instance);
-                fake->initializeDataMembersArea();
-            }
+		    initDataMembersIfOwner();
+	    }
+
+		void clear()
+        {
+			std::vector<ActualInvocationsContainer *> vec;
+			_proxy.getMethodMocks(vec);
+			for (ActualInvocationsContainer *s : vec) {
+				s->clear();
+			}
+			initDataMembersIfOwner();
         }
 
         virtual C &get() override {
@@ -8128,6 +8170,10 @@ namespace fakeit {
         void Reset() {
             impl.reset();
         }
+
+		void ClearInvocationHistory() {
+			impl.clear();
+		}
 
         template<class DATA_TYPE, typename ... arglist,
                 class = typename std::enable_if<std::is_member_object_pointer<DATA_TYPE C::*>::value>::type>
@@ -8561,7 +8607,7 @@ namespace fakeit {
             _expectedCount = count;
         }
 
-        void setFileInfo(std::string file, int line, std::string callingMethod) {
+        void setFileInfo(const char * file, int line, const char * callingMethod) {
             _file = file;
             _line = line;
             _testMethod = callingMethod;
@@ -8574,9 +8620,9 @@ namespace fakeit {
         std::vector<Sequence *> _expectedPattern;
         int _expectedCount;
 
-        std::string _file;
+        const char * _file;
         int _line;
-        std::string _testMethod;
+		const char * _testMethod;
         bool _isVerified;
 
         SequenceVerificationExpectation(
@@ -8801,7 +8847,7 @@ namespace fakeit {
             return Terminator(_expectationPtr);
         }
 
-        SequenceVerificationProgress setFileInfo(std::string file, int line, std::string callingMethod) {
+        SequenceVerificationProgress setFileInfo(const char * file, int line, const char * callingMethod) {
             _expectationPtr->setFileInfo(file, line, callingMethod);
             return *this;
         }
@@ -8916,7 +8962,7 @@ namespace fakeit {
                 VerifyExpectation(_fakeit);
             }
 
-            void setFileInfo(std::string file, int line, std::string callingMethod) {
+            void setFileInfo(const char * file, int line, const char * callingMethod) {
                 _file = file;
                 _line = line;
                 _callingMethod = callingMethod;
@@ -8927,9 +8973,9 @@ namespace fakeit {
             VerificationEventHandler &_fakeit;
             std::vector<ActualInvocationsSource *> _mocks;
 
-            std::string _file;
+			const char * _file;
             int _line;
-            std::string _callingMethod;
+			const char * _callingMethod;
             bool _isVerified;
 
             VerifyNoOtherInvocationsExpectation(VerificationEventHandler &fakeit,
@@ -8998,8 +9044,8 @@ namespace fakeit {
         ~VerifyNoOtherInvocationsVerificationProgress() THROWS {
         };
 
-        VerifyNoOtherInvocationsVerificationProgress setFileInfo(std::string file, int line,
-                                                                 std::string callingMethod) {
+        VerifyNoOtherInvocationsVerificationProgress setFileInfo(const char * file, int line,
+			const char * callingMethod) {
             _ptr->setFileInfo(file, line, callingMethod);
             return *this;
         }

@@ -26,6 +26,8 @@
 *.sdf
 *.filters
 *.opensdf
+*.user
+*.opendb
 Debug/
 ipch/
 TestResults/
@@ -54,3 +56,4 @@ bii/
 *.pyc
 
 *.*~
+*.nupkg

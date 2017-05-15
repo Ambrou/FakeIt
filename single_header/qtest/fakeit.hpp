@@ -2,7 +2,7 @@
 /*
  *  FakeIt - A Simplified C++ Mocking Framework
  *  Copyright (c) Eran Pe'er 2013
- *  Generated: 2017-05-07 09:27:12.367913
+ *  Generated: 2017-05-07 09:27:54.386365
  *  Distributed under the MIT License. Please refer to the LICENSE file at:
  *  https://github.com/eranpeer/FakeIt
  */
@@ -10,7 +10,7 @@
 #ifndef fakeit_h__
 #define fakeit_h__
 
-
+#include <QTest>
 
 #include <functional>
 #include <memory>
@@ -1073,58 +1073,67 @@ namespace fakeit {
 
 namespace fakeit {
 
-	struct GTestAdapter : public EventHandler {
-		virtual ~GTestAdapter() = default;
+class QTestAdapter: public EventHandler {
+    EventFormatter& _formatter;
+public:
 
-        GTestAdapter(EventFormatter &formatter)
-			: _formatter(formatter) {
-		}
+    virtual ~QTestAdapter() = default;
+    QTestAdapter(EventFormatter& formatter):_formatter(formatter){}
 
-		virtual void handle(const UnexpectedMethodCallEvent &evt) override {
-			std::string format = _formatter.format(evt);
-            GTEST_FATAL_FAILURE_(format.c_str());
-        }
+    virtual void handle(const UnexpectedMethodCallEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
+    }
 
-		virtual void handle(const SequenceVerificationEvent &evt) override {
-			std::string format(_formatter.format(evt));
-			GTEST_MESSAGE_AT_(evt.file(), evt.line(), format.c_str(), ::testing::TestPartResult::kFatalFailure);
-        }
+    virtual void handle(const SequenceVerificationEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
+    }
 
-		virtual void handle(const NoMoreInvocationsVerificationEvent &evt) override {
-			std::string format = _formatter.format(evt);
-			GTEST_MESSAGE_AT_(evt.file(), evt.line(), format.c_str(), ::testing::TestPartResult::kFatalFailure);
-        }
+    virtual void handle(const NoMoreInvocationsVerificationEvent& e) override
+    {
+        auto str = _formatter.format(e);
+        QFAIL(str.c_str());
+    }
 
-	private:
-		EventFormatter &_formatter;
-	};
+};
 
-    class GTestFakeit : public DefaultFakeit {
+class QTestFakeit: public DefaultFakeit {
 
-    public:
-        virtual ~GTestFakeit() = default;
+public:
+    virtual ~QTestFakeit() = default;
 
-        GTestFakeit(): _gTestAdapter(*this) {
-        }
+    QTestFakeit()
+            : _formatter(), _qtestAdapter(*this) {
+    }
 
-        static GTestFakeit &getInstance() {
-            static GTestFakeit instance;
-            return instance;
-        }
+    static QTestFakeit &getInstance() {
+        static QTestFakeit instance;
+        return instance;
+    }
 
-    protected:
+protected:
 
-        fakeit::EventHandler &accessTestingFrameworkAdapter() override {
-            return _gTestAdapter;
-        }
+    fakeit::EventHandler &accessTestingFrameworkAdapter() override {
+        return _qtestAdapter;
+    }
 
-    private:
+    EventFormatter &accessEventFormatter() override {
+        return _formatter;
+    }
 
-        GTestAdapter _gTestAdapter;
-    };
+private:
+
+    DefaultEventFormatter _formatter;
+    QTestAdapter _qtestAdapter;
+
+};
+
 }
 
-static fakeit::DefaultFakeit& Fakeit = fakeit::GTestFakeit::getInstance();
+static fakeit::DefaultFakeit& Fakeit = fakeit::QTestFakeit::getInstance();
 
 
 #include <type_traits>
